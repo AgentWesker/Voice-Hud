@@ -18,7 +18,6 @@
 
 //ConVars
 ConVar g_ConVar_ExcludeAdmins;
-ConVar g_ConVar_AdminOnly;
 
 //Global Handles & Variables
 Handle g_hHudCookie;
@@ -29,7 +28,6 @@ char g_sMessage[1024];
 bool g_bNoneSpeaking;
 bool g_bDisableHud;
 bool g_bExcludeAdmins;
-bool g_bAdminOnly;
 int g_iEnabled[(MAXPLAYERS >> 5) + 1];
 int g_iSpeaking[(MAXPLAYERS >> 5) + 1];
 int g_iSpeakingPre[(MAXPLAYERS >> 5) + 1];
@@ -38,7 +36,7 @@ int g_iPostAdmin[(MAXPLAYERS >> 5) + 1];
 ArrayList g_alClients;
 
 #define PLUGIN_NAME 	"Voice Hud"
-#define PLUGIN_VERSION	 "1.3"
+#define PLUGIN_VERSION	 "1.4"
 
 public Plugin myinfo =
 {
@@ -57,10 +55,6 @@ public void OnPluginStart()
 	g_ConVar_ExcludeAdmins = CreateConVar("sm_voicehud_excludeadmins", "1.0", "Exclude admins from the Hud.", _, true, 0.0, true, 1.0);
 	g_bExcludeAdmins = GetConVarBool(g_ConVar_ExcludeAdmins);
 	HookConVarChange(g_ConVar_ExcludeAdmins, OnConVarChanged);
-	
-	g_ConVar_AdminOnly = CreateConVar("sm_voicehud_adminonly", "1.0", "Removes cookies for non-admins, use overrides to restrict", _, true, 0.0, true, 1.0);
-	g_bAdminOnly = GetConVarBool(g_ConVar_AdminOnly);
-	HookConVarChange(g_ConVar_AdminOnly, OnConVarChanged);
 	
 	if (g_alClients == null)
 		g_alClients = new ArrayList(1, 0);
@@ -85,13 +79,6 @@ public void OnConVarChanged(ConVar convar, const char[] oldVal, const char[] new
 			g_bExcludeAdmins = true;
 		} else {
 			g_bExcludeAdmins = false;
-		}
-	} else if (convar == g_ConVar_AdminOnly)
-	{
-		if (StringToInt(newVal) >= 1) {
-			g_bAdminOnly = true;
-		} else {
-			g_bAdminOnly = false;
 		}
 	}
 }
