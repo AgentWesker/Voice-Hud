@@ -18,6 +18,7 @@
 
 //ConVars
 ConVar g_ConVar_ExcludeAdmins;
+ConVar g_ConVar_AdminOnly;
 
 //Global Handles & Variables
 Handle g_hHudCookie;
@@ -28,14 +29,16 @@ char g_sMessage[1024];
 bool g_bNoneSpeaking;
 bool g_bDisableHud;
 bool g_bExcludeAdmins;
+bool g_bAdminOnly;
 int g_iEnabled[(MAXPLAYERS >> 5) + 1];
 int g_iSpeaking[(MAXPLAYERS >> 5) + 1];
 int g_iSpeakingPre[(MAXPLAYERS >> 5) + 1];
+int g_iPostAdmin[(MAXPLAYERS >> 5) + 1];
 
 ArrayList g_alClients;
 
 #define PLUGIN_NAME 	"Voice Hud"
-#define PLUGIN_VERSION	 "1.1"
+#define PLUGIN_VERSION	 "1.3"
 
 public Plugin myinfo =
 {
@@ -51,10 +54,13 @@ public void OnPluginStart()
 	CreateConVar("sm_voicehud_version", PLUGIN_VERSION, "", FCVAR_SPONLY|FCVAR_REPLICATED|FCVAR_NOTIFY);
 	RegConsoleCmd("sm_voicehud", cmdEnableHud, "Toggles the voice hud");
 	
-	//Stamina ConVar
 	g_ConVar_ExcludeAdmins = CreateConVar("sm_voicehud_excludeadmins", "1.0", "Exclude admins from the Hud.", _, true, 0.0, true, 1.0);
 	g_bExcludeAdmins = GetConVarBool(g_ConVar_ExcludeAdmins);
 	HookConVarChange(g_ConVar_ExcludeAdmins, OnConVarChanged);
+	
+	g_ConVar_AdminOnly = CreateConVar("sm_voicehud_adminonly", "1.0", "Removes cookies for non-admins, use overrides to restrict", _, true, 0.0, true, 1.0);
+	g_bAdminOnly = GetConVarBool(g_ConVar_AdminOnly);
+	HookConVarChange(g_ConVar_AdminOnly, OnConVarChanged);
 	
 	if (g_alClients == null)
 		g_alClients = new ArrayList(1, 0);
@@ -65,29 +71,27 @@ public void OnPluginStart()
 	if (g_tHudTimer == null)
 		g_tHudTimer = CreateTimer(0.1, Timer_Hud, _, TIMER_REPEAT|TIMER_FLAG_NO_MAPCHANGE);
 	
-	if (g_hHudCookie == null)
-		g_hHudCookie = RegClientCookie("voicehud_toggle", "Voice Hud Toggle Pref", CookieAccess_Protected);
+	g_hHudCookie = RegClientCookie("voicehud_toggle", "Voice Hud Toggle Pref", CookieAccess_Protected);
 	
 	g_bNoneSpeaking = true;
 	g_bDisableHud = true;
-	
-	//Late load cookies
-	for (int j = 1; j <= MaxClients; j++)
-	{
-		if (AreClientCookiesCached(j))
-		{
-			OnClientCookiesCached(j);
-		}
-	}
 }
 
 public void OnConVarChanged(ConVar convar, const char[] oldVal, const char[] newVal)
 {
-	if (convar == g_ConVar_ExcludeAdmins) {
+	if (convar == g_ConVar_ExcludeAdmins)
+	{
 		if (StringToInt(newVal) >= 1) {
 			g_bExcludeAdmins = true;
 		} else {
 			g_bExcludeAdmins = false;
+		}
+	} else if (convar == g_ConVar_AdminOnly)
+	{
+		if (StringToInt(newVal) >= 1) {
+			g_bAdminOnly = true;
+		} else {
+			g_bAdminOnly = false;
 		}
 	}
 }
@@ -108,6 +112,13 @@ public void OnMapStart()
 	g_sMessage = "";
 	checkSpeakers(true);
 	checkHudUsers(true);
+	for (int i = 0; i < sizeof(g_iPostAdmin); i++)
+	{
+		if (g_iPostAdmin[i])
+		{
+			g_iPostAdmin[i] = 0;
+		}
+	}
 }
 
 public Action Timer_Hud(Handle timer)
@@ -131,9 +142,9 @@ public Action Timer_Hud(Handle timer)
 
 public void OnClientCookiesCached(int client)
 {
-	if (IsClientInGame(client))
+	if (AreClientCookiesCached(client) && CheckBit(g_iPostAdmin, client))
 	{
-		char sCookieValue[1];
+		char sCookieValue[2];
 		GetClientCookie(client, g_hHudCookie, sCookieValue, sizeof(sCookieValue));
 		if (sCookieValue[0])
 		{
@@ -162,13 +173,18 @@ public Action ClientHudNotice(Handle timer, int client)
 
 public void OnClientPostAdminCheck(int client)
 {
+	SetBit(g_iPostAdmin, client);
+	
 	if (g_tSpeakTimer[client] != null)
 	{
 		KillTimer(g_tSpeakTimer[client]);
 		g_tSpeakTimer[client] = null;
 		ClearBit(g_iSpeaking, client);
+		ClearBit(g_iSpeakingPre, client);
 		checkSpeakers();
 	}
+	
+	OnClientCookiesCached(client);
 }
 public void OnClientDisconnect(int client)
 {
@@ -177,6 +193,7 @@ public void OnClientDisconnect(int client)
 		ClearBit(g_iEnabled, client);
 		checkHudUsers();
 	}
+	ClearBit(g_iPostAdmin, client);
 }
 
 public void OnClientSpeakingEx(int client)
@@ -185,7 +202,7 @@ public void OnClientSpeakingEx(int client)
 	if (!CheckBit(g_iSpeakingPre, client))
 	{
 		//If user is an admin & exclude admins is true
-		if ((GetUserAdmin(client) != INVALID_ADMIN_ID) && g_bExcludeAdmins)
+		if (!(GetUserAdmin(client) == INVALID_ADMIN_ID) && g_bExcludeAdmins)
 			return;
 			
 		g_bNoneSpeaking = false;
@@ -324,7 +341,7 @@ public Action cmdEnableHud(int client, any args)
 		SetBit(g_iEnabled, client);
 		g_bDisableHud = false;
 		PrintToChat(client, "[Voice Hud] Enabled the Hud");
-		SetClientCookie(client, g_hHudCookie, "1");
+		SetClientCookie(client, g_hHudCookie, "11");
 	}
 	
 	return Plugin_Handled;
