@@ -32,7 +32,7 @@ ArrayList g_alClients;
 ArrayList g_alSpeaking;
 
 #define PLUGIN_NAME 	"Voice Hud"
-#define PLUGIN_VERSION	 "1.5"
+#define PLUGIN_VERSION	 "1.6"
 
 public Plugin myinfo =
 {
@@ -266,6 +266,7 @@ public Action cmdEnableHud(int client, any args)
 		ClearBit(g_iEnabled, client);
 		checkHudUsers();
 		PrintToChat(client, "[Voice Hud] Disabled the Hud");
+		ClearSyncHud(client, g_hHudSync);
 		SetClientCookie(client, g_hHudCookie, "");
 	} else
 	{
