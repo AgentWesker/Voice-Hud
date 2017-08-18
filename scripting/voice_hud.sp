@@ -32,7 +32,7 @@ ArrayList g_alClients;
 ArrayList g_alSpeaking;
 
 #define PLUGIN_NAME 	"Voice Hud"
-#define PLUGIN_VERSION	 "1.6"
+#define PLUGIN_VERSION	 "1.6.1"
 
 public Plugin myinfo =
 {
@@ -187,7 +187,7 @@ public void OnClientSpeakingEx(int client)
 		}
 		
 		//Keep the array the size of the Hud (5 total)
-		if (g_alClients.Length > 4)
+		if (g_alClients.Length > 5)
 		{
 			g_alClients.Erase(0);
 		}
