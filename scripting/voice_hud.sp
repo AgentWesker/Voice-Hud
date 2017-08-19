@@ -32,7 +32,7 @@ ArrayList g_alClients;
 ArrayList g_alSpeaking;
 
 #define PLUGIN_NAME 	"Voice Hud"
-#define PLUGIN_VERSION	 "1.6.1"
+#define PLUGIN_VERSION	 "1.7"
 
 public Plugin myinfo =
 {
@@ -152,6 +152,14 @@ public void OnClientSpeakingEx(int client)
 	//Someone is talking now	
 	if (g_alSpeaking.FindValue(client) == -1)
 	{
+		//Don't continue for muted players
+		if (GetClientListeningFlags(client) == VOICE_MUTED)
+		{
+			SetHudTextParams(0.03, 0.37, 15.0, 47, 206, 58, 255, 0, 0.0, 0.0, 0.0);
+			ShowSyncHudText(client, g_hHudSync, "NOTICE: You are currently muted");
+			return;
+		}
+		
 		//If user is an admin & exclude admins is true
 		if (!(GetUserAdmin(client) == INVALID_ADMIN_ID) && g_bExcludeAdmins)
 			return;
@@ -216,6 +224,12 @@ public void OnClientSpeakingEx(int client)
 	
 	if (g_alSpeaking.Get(0) == client && !g_bDisableHud)
 	{
+		//Remove this last person if they are muted
+		if (GetClientListeningFlags(client) == VOICE_MUTED)
+		{
+			g_alSpeaking.Erase(0);
+			return;
+		}
 		//Only refresh using the last person still talking (15 sec)
 		for (int i = 1; i <= MaxClients; i++)
 		{
