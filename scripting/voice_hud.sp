@@ -161,7 +161,7 @@ public void OnClientSpeakingEx(int client)
 		}
 		
 		//If user is an admin & exclude admins is true
-		if ((CheckCommandAccess(client, "voicehud_bypass", ADMFLAG_GENERIC)) && g_bExcludeAdmins)
+		if ((CheckCommandAccess(client, "voicehud_bypass", ADMFLAG_GENERIC)) && !IsFakeClient && g_bExcludeAdmins)
 			return;
 			
 		g_alSpeaking.Push(client);
